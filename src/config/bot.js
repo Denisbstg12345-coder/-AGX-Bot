@@ -159,9 +159,9 @@ export const botConfig = {
   economy: {
     currency: {
       // Currency display name.
-      name: "dollar",
+      name: "coin",
       // Plural display name.
-      namePlural: "dollars",
+      namePlural: "coins",
       // Currency symbol shown in balances.
       symbol: "$",
     },
@@ -170,10 +170,10 @@ export const botConfig = {
     startingBalance: 1000,
 
     // Maximum bank amount before upgrades (if upgrades are used).
-    baseBankCapacity: 10000000,
+    baseBankCapacity: 100000,
 
     // Daily reward amount.
-    dailyAmount: 5000,
+    dailyAmount: 100,
 
     // Work command random payout range.
     workMin: 1,
