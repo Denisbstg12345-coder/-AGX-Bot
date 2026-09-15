@@ -95,61 +95,62 @@ export const botConfig = {
       secondary: "#ffffff",
 
       // Standard status colors for success/error/warning/info messages.
-      success: "#57F287",
-      error: "#ED4245",
-      warning: "#FEE75C",
-      info: "#3498DB",
+      success: "#FFFFFF",
+      error: "#8B0000",
+      warning: "#808080",
+      info: "#FFFFFF",
 
       // Neutral utility colors.
       light: "#FFFFFF",
-      dark: "#202225",
-      gray: "#99AAB5",
+      dark: "#080808",
+      gray: "#808080",
 
       // Discord-style palette shortcuts.
-      blurple: "#5865F2",
-      green: "#57F287",
-      yellow: "#FEE75C",
-      fuchsia: "#EB459E",
-      red: "#ED4245",
+      blurple: "#FFFFFF",
+      green: "#FFFFFF",
+      yellow: "#808080",
+      fuchsia: "#FFFFFF",
+      red: "#8B0000",
       black: "#000000",
 
       // Feature-specific colors.
       giveaway: {
-        active: "#57F287",
-        ended: "#ED4245",
+        active: "#FFFFFF",
+        ended: "#808080",
       },
       ticket: {
-        open: "#57F287",
-        claimed: "#FAA61A",
-        closed: "#ED4245",
-        pending: "#99AAB5",
+        open: "#FFFFFF",
+        claimed: "#808080",
+        closed: "#8B0000",
+        pending: "#808080",
       },
-      economy: "#F1C40F",
-      birthday: "#E91E63",
-      moderation: "#9B59B6",
+      economy: "#FFFFFF",
+      birthday: "#FFFFFF",
+      moderation: "#808080",
 
       // Ticket priority color mapping.
       priority: {
-        none: "#95A5A6",
-        low: "#3498db",
-        medium: "#2ecc71",
-        high: "#f1c40f",
-        urgent: "#e74c3c",
+        none: "#808080",
+        low: "#FFFFFF",
+        medium: "#FFFFFF",
+        high: "#808080",
+        urgent: "#8B0000",
       },
     },
     footer: {
       // Default footer text used in bot embeds.
-      text: "Titan Bot",
+      text: "AGX • Titan Bot",
       // Footer icon URL (null = no icon).
-      icon: null,
+      icon: "https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&",
     },
     // Default thumbnail URL for embeds (null = no thumbnail).
-    thumbnail: null,
+    thumbnail:"https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&",
     author: {
       // Optional default embed author block.
-      name: null,
-      icon: null,
-      url: null,
+      name: "AGX",
+      icon: "https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&",
+      icon: "https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&",
+      url: 
     },
   },
 
@@ -159,9 +160,9 @@ export const botConfig = {
   economy: {
     currency: {
       // Currency display name.
-      name: "coin",
+      name: "AGX Credit",
       // Plural display name.
-      namePlural: "coins",
+      namePlural: "AGX Credits",
       // Currency symbol shown in balances.
       symbol: "$",
     },
@@ -173,11 +174,11 @@ export const botConfig = {
     baseBankCapacity: 100000,
 
     // Daily reward amount.
-    dailyAmount: 100,
+    dailyAmount: 2500,
 
     // Work command random payout range.
-    workMin: 1,
-    workMax: 100,
+    workMin: 1000,
+    workMax: 5000,
 
     // Beg command random payout range.
     begMin: 1,
@@ -212,28 +213,28 @@ export const botConfig = {
     // Priority options users/staff can assign.
     priorities: {
       none: {
-        emoji: "⚪",
-        color: "#95A5A6",
+        emoji: "⚫",
+        color: "#808080",
         label: "None",
       },
       low: {
-        emoji: "🟢",
-        color: "#2ECC71",
+        emoji: "⚪",
+        color: "#FFFFFF",
         label: "Low",
       },
       medium: {
-        emoji: "🟡",
-        color: "#F1C40F",
+        emoji: "⚪",
+        color: "#FFFFFF",
         label: "Medium",
       },
       high: {
-        emoji: "🔴",
-        color: "#E74C3C",
+        emoji: "⚪",
+        color: "#808080",
         label: "High",
       },
       urgent: {
-        emoji: "🚨",
-        color: "#E91E63",
+        emoji: "⚠️",
+        color: "#8B0000",
         label: "Urgent",
       },
     },
@@ -284,7 +285,7 @@ export const botConfig = {
     announcementChannel: null,
 
     // Timezone used to calculate birthday dates.
-    timezone: "UTC",
+    timezone: "Europe/Bucharest",
   },
 
   // =========================
