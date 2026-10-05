@@ -276,6 +276,19 @@ async function handleSetColor(selectInteraction, rootInteraction, state) {
                     .setDescription(c.value !== '__custom__' ? c.value : 'Enter your own #RRGGBB value'),
             ),
         );
+    const colorMessage = await selectInteraction.followUp({
+    embeds: [
+        new EmbedBuilder()
+            .setTitle('Set Color')
+            .setDescription(
+                'Select a preset color or choose **Custom Hex** to enter your own `#RRGGBB` value.',
+            )
+            .setColor(getColor('info')),
+    ],
+    components: [new ActionRowBuilder().addComponents(colorSelect)],
+    flags: MessageFlags.Ephemeral,
+    fetchReply: true,
+});
 
     await selectInteraction.followUp({
         embeds: [
