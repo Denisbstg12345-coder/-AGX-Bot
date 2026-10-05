@@ -157,24 +157,24 @@ export const botConfig = {
   embeds: {
     colors: {
       // Main AGX branding.
-      primary: '#080808',
+      primary: '#b6b6b6',
       secondary: '#FFFFFF',
 
       // Standard status colors.
       success: '#FFFFFF',
       error: '#8B0000',
-      warning: '#808080',
+      warning: '#b6b6b6',
       info: '#FFFFFF',
 
       // Neutral colors.
       light: '#FFFFFF',
-      dark: '#080808',
-      gray: '#808080',
+      dark: '#b6b6b6',
+      gray: '#b6b6b6',
 
       // Discord-style shortcuts.
       blurple: '#FFFFFF',
       green: '#FFFFFF',
-      yellow: '#808080',
+      yellow: '#b6b6b6',
       fuchsia: '#FFFFFF',
       red: '#8B0000',
       black: '#000000',
@@ -182,28 +182,28 @@ export const botConfig = {
       // Giveaway colors.
       giveaway: {
         active: '#FFFFFF',
-        ended: '#808080',
+        ended: '#b6b6b6',
       },
 
       // Ticket colors.
       ticket: {
         open: '#FFFFFF',
-        claimed: '#808080',
+        claimed: '#b6b6b6',
         closed: '#8B0000',
-        pending: '#808080',
+        pending: '#b6b6b6',
       },
 
       // Feature colors.
       economy: '#FFFFFF',
       birthday: '#FFFFFF',
-      moderation: '#808080',
+      moderation: '#b6b6b6',
 
       // Ticket priority colors.
       priority: {
-        none: '#808080',
+        none: '#b6b6b6',
         low: '#FFFFFF',
         medium: '#FFFFFF',
-        high: '#808080',
+        high: '#b6b6b6',
         urgent: '#8B0000',
       },
     },
