@@ -290,12 +290,20 @@ async function handleSetColor(selectInteraction, rootInteraction, state) {
         flags: MessageFlags.Ephemeral,
     });
 
-    const colorCollector = rootInteraction.channel.createMessageComponentCollector({
-        componentType: ComponentType.StringSelect,
-        filter: i =>
-            i.user.id === selectInteraction.user.id && i.customId === 'eb_color_pick',
-        time: 60_000,
-        max: 1,
+  const colorMessage = await selectInteraction.followUp({
+    content: 'Choose an embed color:',
+    components: [new ActionRowBuilder().addComponents(colorSelect)],
+    flags: MessageFlags.Ephemeral,
+    fetchReply: true,
+});
+
+const colorCollector = colorMessage.createMessageComponentCollector({
+    componentType: ComponentType.StringSelect,
+    filter: i =>
+        i.user.id === selectInteraction.user.id && i.customId === 'eb_color_pick',
+    time: 60_000,
+    max: 1,
+});
     });
 
     colorCollector.on('collect', async colorInter => {
