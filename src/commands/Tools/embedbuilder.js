@@ -669,7 +669,7 @@ async function handleEditContent(
         .setLabel('Description')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
-        .setMaxLength(4095)
+        .setMaxLength(4000)
         .setPlaceholder('Optional embed description');
 
     if (session.state.title) {
