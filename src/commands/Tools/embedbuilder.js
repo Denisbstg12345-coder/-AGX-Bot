@@ -273,24 +273,15 @@ async function handleSetColor(selectInteraction, rootInteraction, state) {
                     .setLabel(c.label)
                     .setValue(c.value)
                     .setEmoji(c.emoji)
-                    .setDescription(c.value !== '__custom__' ? c.value : 'Enter your own #RRGGBB value'),
+                    .setDescription(
+                        c.value !== '__custom__'
+                            ? c.value
+                            : 'Enter your own #RRGGBB value',
+                    ),
             ),
         );
-    const colorMessage = await selectInteraction.followUp({
-    embeds: [
-        new EmbedBuilder()
-            .setTitle('Set Color')
-            .setDescription(
-                'Select a preset color or choose **Custom Hex** to enter your own `#RRGGBB` value.',
-            )
-            .setColor(getColor('info')),
-    ],
-    components: [new ActionRowBuilder().addComponents(colorSelect)],
-    flags: MessageFlags.Ephemeral,
-    fetchReply: true,
-});
 
-    await selectInteraction.followUp({
+    const colorMessage = await selectInteraction.followUp({
         embeds: [
             new EmbedBuilder()
                 .setTitle('Set Color')
@@ -299,85 +290,91 @@ async function handleSetColor(selectInteraction, rootInteraction, state) {
                 )
                 .setColor(getColor('info')),
         ],
-        components: [new ActionRowBuilder().addComponents(colorSelect)],
+        components: [
+            new ActionRowBuilder().addComponents(colorSelect),
+        ],
         flags: MessageFlags.Ephemeral,
+        fetchReply: true,
     });
 
-  const colorMessage = await selectInteraction.followUp({
-    content: 'Choose an embed color:',
-    components: [new ActionRowBuilder().addComponents(colorSelect)],
-    flags: MessageFlags.Ephemeral,
-    fetchReply: true,
-});
-
-await selectInteraction.followUp({
-    content: 'Choose an embed color:',
-    components: [new ActionRowBuilder().addComponents(colorSelect)],
-    flags: MessageFlags.Ephemeral,
-});
-
-const colorCollector = rootInteraction.channel.createMessageComponentCollector({
-});
+    const colorCollector = colorMessage.createMessageComponentCollector({
+        componentType: ComponentType.StringSelect,
+        filter: i =>
+            i.user.id === selectInteraction.user.id &&
+            i.customId === 'eb_color_pick',
+        time: 60_000,
+        max: 1,
     });
 
     colorCollector.on('collect', async colorInter => {
         try {
-        const picked = colorInter.values[0];
+            const picked = colorInter.values[0];
 
-        if (picked === '__custom__') {
-            const hexModal = new ModalBuilder()
-                .setCustomId('eb_custom_hex')
-                .setTitle('Custom Color')
-                .addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('hex_value')
-                            .setLabel('Hex Color Code')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('#5865F2')
-                            .setMaxLength(7)
-                            .setMinLength(7)
-                            .setRequired(true),
-                    ),
+            if (picked === '__custom__') {
+                const hexModal = new ModalBuilder()
+                    .setCustomId('eb_custom_hex')
+                    .setTitle('Custom Color')
+                    .addComponents(
+                        new ActionRowBuilder().addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('hex_value')
+                                .setLabel('Hex Color Code')
+                                .setStyle(TextInputStyle.Short)
+                                .setPlaceholder('#5865F2')
+                                .setMaxLength(7)
+                                .setMinLength(7)
+                                .setRequired(true),
+                        ),
+                    );
+
+                const shown = await InteractionHelper.safeShowModal(
+                    colorInter,
+                    hexModal,
                 );
 
-            const shown = await InteractionHelper.safeShowModal(colorInter, hexModal);
-            if (!shown) return;
+                if (!shown) return;
 
-            const hexSubmit = await colorInter
-                .awaitModalSubmit({
-                    filter: i =>
-                        i.customId === 'eb_custom_hex' && i.user.id === colorInter.user.id,
-                    time: 60_000,
-                })
-                .catch(() => null);
+                const hexSubmit = await colorInter
+                    .awaitModalSubmit({
+                        filter: i =>
+                            i.customId === 'eb_custom_hex' &&
+                            i.user.id === colorInter.user.id,
+                        time: 60_000,
+                    })
+                    .catch(() => null);
 
-            if (!hexSubmit) return;
+                if (!hexSubmit) return;
 
-            const hex = hexSubmit.fields.getTextInputValue('hex_value').trim();
-            if (!isValidHex(hex)) {
-                await replyUserError(hexSubmit, {
-                    type: ErrorTypes.USER_INPUT,
-                    message: `\`${hex}\` is not a valid hex color. Use the format \`#RRGGBB\` (e.g. \`#5865F2\`).`,
-                });
-                return;
+                const hex = hexSubmit.fields
+                    .getTextInputValue('hex_value')
+                    .trim();
+
+                if (!isValidHex(hex)) {
+                    await replyUserError(hexSubmit, {
+                        type: ErrorTypes.USER_INPUT,
+                        message:
+                            `\`${hex}\` is not a valid hex color. ` +
+                            'Use the format `#RRGGBB` (e.g. `#5865F2`).',
+                    });
+                    return;
+                }
+
+                state.color = hex;
+                await hexSubmit.deferUpdate().catch(() => {});
+            } else {
+                state.color = picked;
+                await colorInter.deferUpdate().catch(() => {});
             }
 
-            state.color = hex;
-            await hexSubmit.deferUpdate().catch(() => {});
-        } else {
-            state.color = picked;
-            await colorInter.deferUpdate().catch(() => {});
-        }
-
-        await refreshDashboard(rootInteraction, state);
+            await refreshDashboard(rootInteraction, state);
         } catch (error) {
-            logger.warn('Embed builder color picker interaction failed:', error.message);
+            logger.warn(
+                'Embed builder color picker interaction failed:',
+                error.message,
+            );
         }
     });
 }
-
-async function handleSetAuthor(selectInteraction, rootInteraction, state) {
     const modal = new ModalBuilder()
         .setCustomId('eb_author')
         .setTitle('Set Author')
