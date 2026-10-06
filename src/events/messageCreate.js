@@ -18,8 +18,16 @@ import {
   recordCorrectCount,
 } from '../services/countingGameService.js';
 
-const HF_MODEL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1';
-const AI_REQUEST_TIMEOUT_MS = 30000;
+const HF_CHAT_URL = 'https://router.huggingface.co/v1/chat/completions';
+const HF_DEFAULT_MODEL = 'meta-llama/Llama-3.2-3B-Instruct';
+const AI_REQUEST_TIMEOUT_MS = 15000;
+const AI_FALLBACK_RESPONSES = [
+  'Brain.exe stopped responding, the raids fried my circuits :3',
+  'cant think right now, too busy raiding :3',
+  'My brain lagged out, the clan raid prep got me dizzy :3',
+  'AGX is on a raid break, ask me again after we win :3',
+  'Error 404: thoughts not found, the TSB grind took them :3',
+];
 const AI_MAX_RESPONSE_LENGTH = 400;
 const AI_SYSTEM_PROMPT =
   "You are AGX bot, part of the TSB raid clan. You're playful and mischievous (use :3 vibes). " +
@@ -69,59 +77,113 @@ function isOwner(message) {
   return Boolean(message.member?.roles?.cache?.some(role => ownerIds.includes(role.id)));
 }
 
-async function handleAiResponse(message, client) {
-  try {
-    if (!client.user) return false;
-    if (!message.mentions.has(client.user, { ignoreEveryone: true, ignoreRoles: true })) return false;
-    if (!isOwner(message)) return false;
+function getFallbackResponse() {
+  return AI_FALLBACK_RESPONSES[Math.floor(Math.random() * AI_FALLBACK_RESPONSES.length)];
+}
 
+async function fetchAiReply(userMessage) {
+  const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY;
+  const model = process.env.HF_MODEL || HF_DEFAULT_MODEL;
+
+  if (!token) {
+    console.warn('[AI] No HuggingFace token set (HF_TOKEN / HUGGINGFACE_API_KEY / HF_API_KEY); using fallback');
+    return null;
+  }
+
+  console.log(`[AI] Calling HuggingFace chat completions (model: ${model})`);
+
+  const response = await fetch(HF_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: AI_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: 80,
+      stream: false,
+    }),
+    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+  });
+
+  console.log(`[AI] HuggingFace responded with status ${response.status}`);
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '<unreadable body>');
+    console.error(`[AI] HuggingFace error ${response.status} ${response.statusText}: ${errorBody.slice(0, 500)}`);
+    return null;
+  }
+
+  const data = await response.json();
+  const reply = data?.choices?.[0]?.message?.content?.trim();
+
+  if (!reply) {
+    console.error(`[AI] HuggingFace returned no usable content: ${JSON.stringify(data).slice(0, 500)}`);
+    return null;
+  }
+
+  return reply;
+}
+
+async function handleAiResponse(message, client) {
+  if (!client.user) return false;
+  if (!message.mentions.has(client.user, { ignoreEveryone: true, ignoreRoles: true })) return false;
+  if (!isOwner(message)) {
+    console.log(`[AI] Mention from non-owner ${message.author.tag} (${message.author.id}); ignoring`);
+    return false;
+  }
+
+  console.log(`[AI] Owner mention detected from ${message.author.tag}`);
+
+  let reply = null;
+
+  try {
     const userMessage = message.content
       .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
       .trim();
 
     if (!userMessage) {
-      await message.reply('Meow? You summoned me but said nothing, clan leader :3').catch(() => {});
+      await message.reply('Meow? You summoned me but said nothing, clan leader :3');
       return true;
     }
 
     await message.channel.sendTyping().catch(() => {});
 
-    const response = await fetch(HF_MODEL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        inputs: `${AI_SYSTEM_PROMPT} User message: ${userMessage}`,
-        parameters: { max_new_tokens: 80, return_full_text: false },
-        options: { wait_for_model: true }
-      }),
-      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HuggingFace API responded with status ${response.status}`);
+    try {
+      reply = await fetchAiReply(userMessage);
+    } catch (apiError) {
+      const reason = apiError?.name === 'TimeoutError' ? 'request timed out' : apiError?.message || apiError;
+      console.error(`[AI] HuggingFace request failed: ${reason}`);
     }
+  } catch (error) {
+    console.error('[AI] Unexpected error while preparing AI response:', error);
+  }
 
-    const data = await response.json();
-    const result = Array.isArray(data) ? data[0] : data;
-    let reply = (result?.generated_text || '').trim();
-
-    if (!reply) {
-      throw new Error('HuggingFace API returned an empty response');
-    }
-
+  if (reply) {
+    console.log('[AI] Using AI-generated reply');
     if (reply.length > AI_MAX_RESPONSE_LENGTH) {
       reply = `${reply.slice(0, AI_MAX_RESPONSE_LENGTH - 3)}...`;
     }
-
-    await message.reply({ content: reply, allowedMentions: { parse: [], repliedUser: false } });
-    return true;
-  } catch (error) {
-    logger.error('Error generating AI response:', error);
-    await message
-      .reply('My brain lagged out for a sec, the raid prep got me dizzy :3 try again soon!')
-      .catch(() => {});
-    return true;
+  } else {
+    console.log('[AI] Using fallback reply');
+    reply = getFallbackResponse();
   }
+
+  try {
+    await message.reply({ content: reply, allowedMentions: { parse: [], repliedUser: false } });
+    console.log('[AI] Reply sent');
+  } catch (replyError) {
+    console.error('[AI] message.reply failed, trying channel.send:', replyError);
+    await message.channel.send({ content: reply, allowedMentions: { parse: [] } }).catch(sendError => {
+      console.error('[AI] channel.send also failed:', sendError);
+    });
+  }
+
+  return true;
 }
 
 async function handlePrefixCommand(message, client) {
