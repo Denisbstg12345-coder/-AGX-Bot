@@ -79,9 +79,24 @@ function isOwner(message) {
     return false;
   }
 
-  const isUserOwner = ownerIds.includes(message.author.id);
-  console.log(`[OWNER_CHECK] Is owner: ${isUserOwner}`);
-  return isUserOwner;
+  // Check if user ID matches
+  if (ownerIds.includes(message.author.id)) {
+    console.log(`[OWNER_CHECK] Is owner by user ID: true`);
+    return true;
+  }
+
+  // Check if any role ID matches
+  if (message.member && message.member.roles && message.member.roles.cache) {
+    for (const [roleId] of message.member.roles.cache) {
+      if (ownerIds.includes(roleId)) {
+        console.log(`[OWNER_CHECK] Is owner by role ID ${roleId}: true`);
+        return true;
+      }
+    }
+  }
+
+  console.log(`[OWNER_CHECK] Is owner: false`);
+  return false;
 }
 
 function getFallbackResponse() {
