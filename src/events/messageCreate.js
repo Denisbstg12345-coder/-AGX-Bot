@@ -106,7 +106,8 @@ function getFallbackResponse() {
 }
 
 async function fetchAiReply(userMessage) {
-  const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY;
+  const rawToken = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY;
+  const token = typeof rawToken === 'string' ? rawToken.trim() : rawToken;
   const model = process.env.HF_MODEL || HF_DEFAULT_MODEL;
 
   if (!token) {
@@ -114,39 +115,77 @@ async function fetchAiReply(userMessage) {
     return null;
   }
 
-  console.log(`[AI] Calling HuggingFace chat completions (model: ${model})`);
-
-  const response = await fetch(HF_CHAT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: AI_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      max_tokens: 80,
-      stream: false,
-    }),
-    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-  });
-
-  console.log(`[AI] HuggingFace responded with status ${response.status}`);
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '<unreadable body>');
-    console.error(`[AI] HuggingFace error ${response.status} ${response.statusText}: ${errorBody.slice(0, 500)}`);
+  if (token.startsWith('${')) {
+    console.error(
+      '[AI] HF_TOKEN appears to be an unsubstituted template variable (starts with "${"); ' +
+      'the environment variable was not resolved. Using fallback'
+    );
     return null;
   }
 
-  const data = await response.json();
+  const requestBody = {
+    model,
+    messages: [
+      { role: 'system', content: AI_SYSTEM_PROMPT },
+      { role: 'user', content: userMessage },
+    ],
+    max_tokens: 80,
+    stream: false,
+  };
+
+  console.log(
+    `[AI] Token present: true, length: ${token.length}, prefix "hf_": ${token.startsWith('hf_')}`
+  );
+  console.log(`[AI] Request URL: ${HF_CHAT_URL}`);
+  console.log(
+    `[AI] Request details: model=${model}, max_tokens=${requestBody.max_tokens}, ` +
+    `stream=${requestBody.stream}, userMessageLength=${userMessage.length}, timeoutMs=${AI_REQUEST_TIMEOUT_MS}`
+  );
+
+  let response;
+  try {
+    response = await fetch(HF_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+    });
+  } catch (fetchError) {
+    console.error(
+      `[AI] fetch to HuggingFace failed: name=${fetchError?.name}, message=${fetchError?.message}, ` +
+      `cause=${fetchError?.cause?.code || fetchError?.cause?.message || fetchError?.cause || 'none'}`
+    );
+    console.error('[AI] fetch error stack:', fetchError?.stack);
+    throw fetchError;
+  }
+
+  console.log(`[AI] HuggingFace responded with status ${response.status} ${response.statusText}`);
+
+  const rawBody = await response.text().catch(err => {
+    console.error(`[AI] Failed to read HuggingFace response body: ${err?.message || err}`);
+    return '';
+  });
+
+  let data = null;
+  try {
+    data = rawBody ? JSON.parse(rawBody) : null;
+    console.log(`[AI] Parsed HuggingFace JSON response (status ${response.status}): ${JSON.stringify(data)}`);
+  } catch (parseError) {
+    console.error(`[AI] HuggingFace response was not valid JSON (${parseError.message}). Raw body: ${rawBody}`);
+  }
+
+  if (!response.ok) {
+    console.error(`[AI] HuggingFace error ${response.status} ${response.statusText}. Full response body: ${rawBody}`);
+    return null;
+  }
+
   const reply = data?.choices?.[0]?.message?.content?.trim();
 
   if (!reply) {
-    console.error(`[AI] HuggingFace returned no usable content: ${JSON.stringify(data).slice(0, 500)}`);
+    console.error(`[AI] HuggingFace returned no usable content. Full response body: ${rawBody}`);
     return null;
   }
 
