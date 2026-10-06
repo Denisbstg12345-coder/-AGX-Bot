@@ -217,7 +217,74 @@ async function fetchAiReply(userMessage, conversation) {
       data?.error?.metadata?.limit_source ===
         'openrouter_free_tier_daily'
     ) {
-      return 'I hit today\'s free AI limit. I\'ll be back after the daily reset :3';
+      const resetHeader = response.headers.get('X-RateLimit-Reset');
+
+      if (resetHeader) {
+        let resetTimestamp = Number(resetHeader);
+
+        // Handle either milliseconds or seconds
+        if (resetTimestamp < 100000000000) {
+          resetTimestamp *= 1000;
+        }
+
+        const resetDate = new Date(resetTimestamp);
+        const now = Date.now();
+        const remainingMs = Math.max(
+          0,
+          resetTimestamp - now
+        );
+
+        const totalMinutes = Math.ceil(
+          remainingMs / 60000
+        );
+
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        let timeLeft;
+
+        if (hours > 0 && minutes > 0) {
+          timeLeft =
+            hours +
+            (hours === 1 ? ' hour' : ' hours') +
+            ' and ' +
+            minutes +
+            (minutes === 1 ? ' minute' : ' minutes');
+        } else if (hours > 0) {
+          timeLeft =
+            hours +
+            (hours === 1 ? ' hour' : ' hours');
+        } else {
+          timeLeft =
+            minutes +
+            (minutes === 1 ? ' minute' : ' minutes');
+        }
+
+        console.log(
+          '[AI] Free AI limit resets at: ' +
+            resetDate.toLocaleString('en-GB', {
+              timeZone: 'Europe/Bucharest',
+              dateStyle: 'full',
+              timeStyle: 'long',
+            })
+        );
+
+        console.log(
+          '[AI] Time until reset: ' + timeLeft
+        );
+
+        return (
+          'I hit today\'s free AI limit :3 You can use me again in ' +
+          timeLeft +
+          '!'
+        );
+      }
+
+      console.log(
+        '[AI] OpenRouter did not provide X-RateLimit-Reset.'
+      );
+
+      return 'I hit today\'s free AI limit :3 I\'ll be back after the daily reset!';
     }
 
     return null;
@@ -226,7 +293,10 @@ async function fetchAiReply(userMessage, conversation) {
   const reply = data?.choices?.[0]?.message?.content?.trim();
 
   if (!reply) {
-    console.error('[AI] OpenRouter returned no usable response:', data);
+    console.error(
+      '[AI] OpenRouter returned no usable response:',
+      data
+    );
     return null;
   }
 
@@ -273,7 +343,8 @@ async function handleAiResponse(message, client) {
   }
 
   console.log(
-    '[AI] Owner mention detected from ' + message.author.tag
+    '[AI] Owner mention detected from ' +
+      message.author.tag
   );
 
   const userMessage = message.content
@@ -285,7 +356,8 @@ async function handleAiResponse(message, client) {
 
   if (!userMessage) {
     await message.reply({
-      content: 'Meow? You summoned me but said nothing, clan leader :3',
+      content:
+        'Meow? You summoned me but said nothing, clan leader :3',
       allowedMentions: {
         parse: [],
         repliedUser: false,
@@ -302,9 +374,15 @@ async function handleAiResponse(message, client) {
   let reply = null;
 
   try {
-    reply = await fetchAiReply(userMessage, conversation);
+    reply = await fetchAiReply(
+      userMessage,
+      conversation
+    );
   } catch (error) {
-    console.error('[AI] Unexpected AI error:', error);
+    console.error(
+      '[AI] Unexpected AI error:',
+      error
+    );
   }
 
   if (!reply) {
@@ -328,7 +406,10 @@ async function handleAiResponse(message, client) {
 
     if (reply.length > AI_MAX_RESPONSE_LENGTH) {
       reply =
-        reply.slice(0, AI_MAX_RESPONSE_LENGTH - 3) + '...';
+        reply.slice(
+          0,
+          AI_MAX_RESPONSE_LENGTH - 3
+        ) + '...';
     }
   }
 
@@ -374,7 +455,10 @@ export default {
     try {
       await handleAiResponse(message, client);
     } catch (error) {
-      console.error('[AI] messageCreate error:', error);
+      console.error(
+        '[AI] messageCreate error:',
+        error
+      );
     }
   },
 };
