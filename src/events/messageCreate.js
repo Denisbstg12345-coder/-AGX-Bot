@@ -1,4 +1,3 @@
-
 import { Events } from 'discord.js';
 
 const AI_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -7,6 +6,12 @@ const AI_REQUEST_TIMEOUT_MS = 30000;
 
 const AI_MAX_RESPONSE_LENGTH = 2000;
 const AI_MEMORY_LIMIT = 20;
+
+// Local safety limit. This does NOT increase OpenRouter's limit.
+const AI_DAILY_REQUEST_LIMIT = 50;
+
+let aiDailyRequestCount = 0;
+let aiDailyRequestDate = new Date().toISOString().slice(0, 10);
 
 const AI_SYSTEM_PROMPT =
   "You are AGX bot, part of the TSB raid clan. " +
@@ -70,7 +75,44 @@ function cleanAiMemory() {
   }
 }
 
+function canMakeAiRequest() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (today !== aiDailyRequestDate) {
+    aiDailyRequestDate = today;
+    aiDailyRequestCount = 0;
+
+    console.log('[AI] Daily request counter reset.');
+  }
+
+  if (aiDailyRequestCount >= AI_DAILY_REQUEST_LIMIT) {
+    console.log(
+      '[AI] Local daily request limit reached: ' +
+        aiDailyRequestCount +
+        '/' +
+        AI_DAILY_REQUEST_LIMIT
+    );
+
+    return false;
+  }
+
+  aiDailyRequestCount++;
+
+  console.log(
+    '[AI] Daily requests: ' +
+      aiDailyRequestCount +
+      '/' +
+      AI_DAILY_REQUEST_LIMIT
+  );
+
+  return true;
+}
+
 async function fetchAiReply(userMessage, conversation) {
+  if (!canMakeAiRequest()) {
+    return 'I\'ve reached my daily AI request limit. I\'ll be back after the reset :3';
+  }
+
   const rawToken = process.env.OPENROUTER_API_KEY;
   const token = typeof rawToken === 'string' ? rawToken.trim() : '';
 
@@ -161,25 +203,25 @@ async function fetchAiReply(userMessage, conversation) {
   }
 
   if (!response.ok) {
-  console.error(
-    '[AI] OpenRouter error ' +
-      response.status +
-      ' ' +
-      response.statusText +
-      ':',
-    data
-  );
+    console.error(
+      '[AI] OpenRouter error ' +
+        response.status +
+        ' ' +
+        response.statusText +
+        ':',
+      data
+    );
 
-  if (
-    response.status === 429 &&
-    data?.error?.metadata?.limit_source === 'openrouter_free_tier_daily'
-  ) {
-    return 'I hit today\'s free AI limit. I\'ll be back after the daily reset :3';
+    if (
+      response.status === 429 &&
+      data?.error?.metadata?.limit_source ===
+        'openrouter_free_tier_daily'
+    ) {
+      return 'I hit today\'s free AI limit. I\'ll be back after the daily reset :3';
+    }
+
+    return null;
   }
-
-  return null;
-}
-
 
   const reply = data?.choices?.[0]?.message?.content?.trim();
 
@@ -336,4 +378,3 @@ export default {
     }
   },
 };
-
