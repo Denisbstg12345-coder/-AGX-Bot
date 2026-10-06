@@ -18,6 +18,13 @@ import {
   recordCorrectCount,
 } from '../services/countingGameService.js';
 
+const HF_MODEL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1';
+const AI_REQUEST_TIMEOUT_MS = 30000;
+const AI_MAX_RESPONSE_LENGTH = 400;
+const AI_SYSTEM_PROMPT =
+  "You are AGX bot, part of the TSB raid clan. You're playful and mischievous (use :3 vibes). " +
+  'Keep responses short (1-2 sentences max) and clan-focused. Only give TSB raid clan themed responses.';
+
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
 
@@ -34,6 +41,11 @@ export default {
         return;
       }
 
+      const aiProcessed = await handleAiResponse(message, client);
+      if (aiProcessed) {
+        return;
+      }
+
       await handlePrefixCommand(message, client);
 
       await handleLeveling(message, client);
@@ -42,6 +54,75 @@ export default {
     }
   }
 };
+
+function getOwnerIds() {
+  return (process.env.OWNER_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function isOwner(message) {
+  const ownerIds = getOwnerIds();
+  if (ownerIds.length === 0) return false;
+  if (ownerIds.includes(message.author.id)) return true;
+  return Boolean(message.member?.roles?.cache?.some(role => ownerIds.includes(role.id)));
+}
+
+async function handleAiResponse(message, client) {
+  try {
+    if (!client.user) return false;
+    if (!message.mentions.has(client.user, { ignoreEveryone: true, ignoreRoles: true })) return false;
+    if (!isOwner(message)) return false;
+
+    const userMessage = message.content
+      .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
+      .trim();
+
+    if (!userMessage) {
+      await message.reply('Meow? You summoned me but said nothing, clan leader :3').catch(() => {});
+      return true;
+    }
+
+    await message.channel.sendTyping().catch(() => {});
+
+    const response = await fetch(HF_MODEL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inputs: `${AI_SYSTEM_PROMPT} User message: ${userMessage}`,
+        parameters: { max_new_tokens: 80, return_full_text: false },
+        options: { wait_for_model: true }
+      }),
+      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HuggingFace API responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const result = Array.isArray(data) ? data[0] : data;
+    let reply = (result?.generated_text || '').trim();
+
+    if (!reply) {
+      throw new Error('HuggingFace API returned an empty response');
+    }
+
+    if (reply.length > AI_MAX_RESPONSE_LENGTH) {
+      reply = `${reply.slice(0, AI_MAX_RESPONSE_LENGTH - 3)}...`;
+    }
+
+    await message.reply({ content: reply, allowedMentions: { parse: [], repliedUser: false } });
+    return true;
+  } catch (error) {
+    logger.error('Error generating AI response:', error);
+    await message
+      .reply('My brain lagged out for a sec, the raid prep got me dizzy :3 try again soon!')
+      .catch(() => {});
+    return true;
+  }
+}
 
 async function handlePrefixCommand(message, client) {
   try {
