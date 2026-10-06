@@ -34,7 +34,13 @@ const AI_FALLBACK_RESPONSES = [
 const aiConversations = new Map();
 
 function getAiConversationKey(message) {
-  return `${message.guild.id}:${message.channel.id}:${message.author.id}`;
+  return (
+    message.guild.id +
+    ':' +
+    message.channel.id +
+    ':' +
+    message.author.id
+  );
 }
 
 function getAiConversation(message) {
@@ -56,7 +62,7 @@ function getFallbackResponse() {
 function cleanAiMemory() {
   if (aiConversations.size <= 100) return;
 
-  const entries = [...aiConversations.entries()];
+  const entries = Array.from(aiConversations.entries());
   const amountToDelete = aiConversations.size - 100;
 
   for (let i = 0; i < amountToDelete; i++) {
@@ -99,16 +105,20 @@ async function fetchAiReply(userMessage, conversation) {
   ];
 
   const requestBody = {
-    model,
-    messages,
+    model: model,
+    messages: messages,
     max_tokens: 700,
     temperature: 0.8,
     stream: false,
   };
 
   console.log(
-    `[AI] Sending request: model=${model}, messages=${messages.length}, ` +
-    `userMessageLength=${userMessage.length}`
+    '[AI] Sending request: model=' +
+      model +
+      ', messages=' +
+      messages.length +
+      ', userMessageLength=' +
+      userMessage.length
   );
 
   let response;
@@ -119,7 +129,7 @@ async function fetchAiReply(userMessage, conversation) {
 
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: 'Bearer ' + token,
         'HTTP-Referer': 'https://discord.com',
         'X-Title': 'AGX TitanBot',
       },
@@ -130,7 +140,10 @@ async function fetchAiReply(userMessage, conversation) {
     });
   } catch (error) {
     console.error(
-      `[AI] OpenRouter request failed: ${error?.name || 'Error'} - ${error?.message || error}`
+      '[AI] OpenRouter request failed: ' +
+        (error && error.name ? error.name : 'Error') +
+        ' - ' +
+        (error && error.message ? error.message : error)
     );
 
     return null;
@@ -149,7 +162,11 @@ async function fetchAiReply(userMessage, conversation) {
 
   if (!response.ok) {
     console.error(
-      `[AI] OpenRouter error ${response.status} ${response.statusText}:`,
+      '[AI] OpenRouter error ' +
+        response.status +
+        ' ' +
+        response.statusText +
+        ':',
       data
     );
 
@@ -188,23 +205,127 @@ async function handleAiResponse(message, client) {
   }
 
   console.log(
-    `[AI] Bot mention detected from ${message.author.tag} (${message.author.id})`
+    '[AI] Bot mention detected from ' +
+      message.author.tag +
+      ' (' +
+      message.author.id +
+      ')'
   );
 
   if (!isOwner(message)) {
     console.log(
-      `[AI] Mention from non-owner ${message.author.tag}; ignoring`
+      '[AI] Mention from non-owner ' +
+        message.author.tag +
+        '; ignoring'
     );
 
     return false;
   }
 
-  console.log(`[AI] Owner mention detected from ${message.author.tag}`);
+  console.log(
+    '[AI] Owner mention detected from ' + message.author.tag
+  );
 
   const userMessage = message.content
-    .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
+    .replace(
+      new RegExp('<@!?' + client.user.id + '>', 'g'),
+      ''
+    )
     .trim();
 
   if (!userMessage) {
     await message.reply({
-      content: 'Meow? You summoned
+      content: 'Meow? You summoned me but said nothing, clan leader :3',
+      allowedMentions: {
+        parse: [],
+        repliedUser: false,
+      },
+    });
+
+    return true;
+  }
+
+  const conversation = getAiConversation(message);
+
+  await message.channel.sendTyping().catch(() => {});
+
+  let reply = null;
+
+  try {
+    reply = await fetchAiReply(userMessage, conversation);
+  } catch (error) {
+    console.error('[AI] Unexpected AI error:', error);
+  }
+
+  if (!reply) {
+    reply = getFallbackResponse();
+  } else {
+    conversation.push({
+      role: 'user',
+      content: userMessage,
+    });
+
+    conversation.push({
+      role: 'assistant',
+      content: reply,
+    });
+
+    while (conversation.length > AI_MEMORY_LIMIT) {
+      conversation.shift();
+    }
+
+    cleanAiMemory();
+
+    if (reply.length > AI_MAX_RESPONSE_LENGTH) {
+      reply =
+        reply.slice(0, AI_MAX_RESPONSE_LENGTH - 3) + '...';
+    }
+  }
+
+  try {
+    await message.reply({
+      content: reply,
+      allowedMentions: {
+        parse: [],
+        repliedUser: false,
+      },
+    });
+
+    console.log('[AI] Reply sent');
+  } catch (replyError) {
+    console.error(
+      '[AI] message.reply failed, trying channel.send:',
+      replyError
+    );
+
+    await message.channel
+      .send({
+        content: reply,
+        allowedMentions: {
+          parse: [],
+        },
+      })
+      .catch(sendError => {
+        console.error(
+          '[AI] channel.send also failed:',
+          sendError
+        );
+      });
+  }
+
+  return true;
+}
+
+export default {
+  name: Events.MessageCreate,
+  once: false,
+
+  async execute(message, client) {
+    try {
+      await handleAiResponse(message, client);
+    } catch (error) {
+      console.error('[AI] messageCreate error:', error);
+    }
+  },
+};
+```
