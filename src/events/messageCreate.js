@@ -162,6 +162,9 @@ async function fetchAiReply(userMessage, conversation) {
 
   return reply;
 }
+function isOwner(message) {
+  return message.author.id === process.env.OWNER_ID;
+}
 
 async function handleAiResponse(message, client) {
   if (!client.user) return false;
