@@ -1,3 +1,4 @@
+```js
 import { Events } from 'discord.js';
 
 const AI_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -166,7 +167,12 @@ async function fetchAiReply(userMessage, conversation) {
 }
 
 function isOwner(message) {
-  return message.author.id === process.env.OWNER_ID;
+  const ownerIds = (process.env.OWNER_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+
+  return ownerIds.includes(message.author.id);
 }
 
 async function handleAiResponse(message, client) {
@@ -201,95 +207,4 @@ async function handleAiResponse(message, client) {
 
   if (!userMessage) {
     await message.reply({
-      content: 'Meow? You summoned me but said nothing, clan leader :3',
-      allowedMentions: {
-        parse: [],
-        repliedUser: false,
-      },
-    });
-
-    return true;
-  }
-
-  const conversation = getAiConversation(message);
-
-  await message.channel.sendTyping().catch(() => {});
-
-  let reply = null;
-
-  try {
-    reply = await fetchAiReply(userMessage, conversation);
-  } catch (error) {
-    console.error('[AI] Unexpected AI error:', error);
-  }
-
-  if (!reply) {
-    reply = getFallbackResponse();
-  } else {
-    conversation.push({
-      role: 'user',
-      content: userMessage,
-    });
-
-    conversation.push({
-      role: 'assistant',
-      content: reply,
-    });
-
-    while (conversation.length > AI_MEMORY_LIMIT) {
-      conversation.shift();
-    }
-
-    cleanAiMemory();
-
-    if (reply.length > AI_MAX_RESPONSE_LENGTH) {
-      reply = `${reply.slice(0, AI_MAX_RESPONSE_LENGTH - 3)}...`;
-    }
-  }
-
-  try {
-    await message.reply({
-      content: reply,
-      allowedMentions: {
-        parse: [],
-        repliedUser: false,
-      },
-    });
-
-    console.log('[AI] Reply sent');
-  } catch (replyError) {
-    console.error(
-      '[AI] message.reply failed, trying channel.send:',
-      replyError
-    );
-
-    await message.channel
-      .send({
-        content: reply,
-        allowedMentions: {
-          parse: [],
-        },
-      })
-      .catch(sendError => {
-        console.error(
-          '[AI] channel.send also failed:',
-          sendError
-        );
-      });
-  }
-
-  return true;
-}
-
-export default {
-  name: Events.MessageCreate,
-  once: false,
-
-  async execute(message, client) {
-    try {
-      await handleAiResponse(message, client);
-    } catch (error) {
-      console.error('[AI] messageCreate error:', error);
-    }
-  },
-};
+      content: 'Meow? You summoned
