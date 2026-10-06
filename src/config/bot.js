@@ -231,18 +231,15 @@ export const botConfig = {
     footer: {
       text: 'AGX • Titan Bot',
 
-      icon:
-        'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa93[...]
+      icon: 'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png',
     },
 
-    thumbnail:
-      'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c[...]
+    thumbnail: 'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png',
 
     author: {
       name: 'AGX',
 
-      icon:
-        'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa93[...]
+      icon: 'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png',
 
       url: 'https://www.tiktok.com/@agent_clan_x',
     },
