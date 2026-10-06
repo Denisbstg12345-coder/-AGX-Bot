@@ -161,17 +161,25 @@ async function fetchAiReply(userMessage, conversation) {
   }
 
   if (!response.ok) {
-    console.error(
-      '[AI] OpenRouter error ' +
-        response.status +
-        ' ' +
-        response.statusText +
-        ':',
-      data
-    );
+  console.error(
+    '[AI] OpenRouter error ' +
+      response.status +
+      ' ' +
+      response.statusText +
+      ':',
+    data
+  );
 
-    return null;
+  if (
+    response.status === 429 &&
+    data?.error?.metadata?.limit_source === 'openrouter_free_tier_daily'
+  ) {
+    return 'I hit today\'s free AI limit. I\'ll be back after the daily reset :3';
   }
+
+  return null;
+}
+
 
   const reply = data?.choices?.[0]?.message?.content?.trim();
 
