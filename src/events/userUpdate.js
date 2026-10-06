@@ -72,3 +72,19 @@ export default {
     }
   }
 };
+}
+  }
+};
+
+export default {
+  name: Events.MessageCreate,
+  once: false,
+
+  async execute(message, client) {
+    try {
+      await handleAiResponse(message, client);
+    } catch (error) {
+      console.error('[AI] messageCreate error:', error);
+    }
+  },
+};
