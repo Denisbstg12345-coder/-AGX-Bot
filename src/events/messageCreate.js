@@ -40,6 +40,8 @@ export default {
   name: Events.MessageCreate,
   async execute(message, client) {
     try {
+      console.log('[MSG_DEBUG] Raw message from', message.author.tag, 'content:', message.content.slice(0, 50));
+
       if (message.author.bot || !message.guild) return;
 
       logger.debug(`Message received from ${message.author.tag}: ${message.content}`);
