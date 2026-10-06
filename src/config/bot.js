@@ -88,7 +88,7 @@ export const botConfig = {
   // BOT PRESENCE
   // ==========================================================
   
-     presence: {
+presence: {
   status: 'online',
 
   activities: [
