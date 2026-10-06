@@ -72,9 +72,16 @@ function getOwnerIds() {
 
 function isOwner(message) {
   const ownerIds = getOwnerIds();
-  if (ownerIds.length === 0) return false;
-  if (ownerIds.includes(message.author.id)) return true;
-  return Boolean(message.member?.roles?.cache?.some(role => ownerIds.includes(role.id)));
+  console.log(`[OWNER_CHECK] User: ${message.author.id}, Owner IDs configured: ${ownerIds.join(',')}`);
+
+  if (ownerIds.length === 0) {
+    console.log('[OWNER_CHECK] No owner IDs configured');
+    return false;
+  }
+
+  const isUserOwner = ownerIds.includes(message.author.id);
+  console.log(`[OWNER_CHECK] Is owner: ${isUserOwner}`);
+  return isUserOwner;
 }
 
 function getFallbackResponse() {
@@ -132,6 +139,7 @@ async function fetchAiReply(userMessage) {
 async function handleAiResponse(message, client) {
   if (!client.user) return false;
   if (!message.mentions.has(client.user, { ignoreEveryone: true, ignoreRoles: true })) return false;
+  console.log(`[AI] Bot mention detected from ${message.author.tag} (${message.author.id})`);
   if (!isOwner(message)) {
     console.log(`[AI] Mention from non-owner ${message.author.tag} (${message.author.id}); ignoring`);
     return false;
