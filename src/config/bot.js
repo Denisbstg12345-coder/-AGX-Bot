@@ -87,37 +87,37 @@ export const botConfig = {
   // ==========================================================
   // BOT PRESENCE
   // ==========================================================
-  
-presence: {
-  status: 'online',
 
-  activities: [
-    {
-      name: 'TSB, Dont quit the raid untill the last blood is DROPPED.',
-      type: 0,
-    },
-    {
-      name: 'AGX growing stronger and bigger',
-      type: 1,
-    },
-    {
-      name: 'AGX Raiding music',
-      type: 2,
-    },
-    {
-      name: 'AGX Wiping clans',
-      type: 3,
-    },
-    {
-      name: ':3',
-      type: 4,
-    },
-    {
-      name: 'The road to top 1 raid clan',
-      type: 5,
-    },
-  ],
-},
+  presence: {
+    status: 'online',
+
+    activities: [
+      {
+        name: 'TSB, Dont quit the raid untill the last blood is DROPPED.',
+        type: 0,
+      },
+      {
+        name: 'AGX growing stronger and bigger',
+        type: 1,
+      },
+      {
+        name: 'AGX Raiding music',
+        type: 2,
+      },
+      {
+        name: 'AGX Wiping clans',
+        type: 3,
+      },
+      {
+        name: ':3',
+        type: 4,
+      },
+      {
+        name: 'The road to top 1 raid clan',
+        type: 5,
+      },
+    ],
+  },
 
   // ==========================================================
   // COMMAND BEHAVIOR
@@ -232,17 +232,17 @@ presence: {
       text: 'AGX • Titan Bot',
 
       icon:
-        'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&',
+        'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa93[...]
     },
 
     thumbnail:
-      'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&',
+      'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c[...]
 
     author: {
       name: 'AGX',
 
       icon:
-        'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa934c74765dc3b039d3f8181ce35&',
+        'https://cdn.discordapp.com/attachments/1256037768363249684/1549211140280557598/b51bbe9d-4a32-4c0a-bf6a-53ba29e59e95.png?ex=6aa9dece&is=6aa88d4e&hm=0e03c89fc6a0d6158ab71dcf89e671f5fbcfa93[...]
 
       url: 'https://www.tiktok.com/@agent_clan_x',
     },
