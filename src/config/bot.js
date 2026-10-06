@@ -93,11 +93,36 @@ export const botConfig = {
 
     activities: [
       {
-        name: 'AGX on TOP',
-        type: 5, // 5 = Competing
-      },
-    ],
-  },
+     presence: {
+  status: 'online',
+
+  activities: [
+    {
+      name: 'TSB, Dont quit the raid untill the last blood is DROPPED.',
+      type: 0,
+    },
+    {
+      name: 'AGX growing stronger and bigger',
+      type: 1,
+    },
+    {
+      name: 'AGX Raiding music',
+      type: 2,
+    },
+    {
+      name: 'AGX Wiping clans',
+      type: 3,
+    },
+    {
+      name: ':3',
+      type: 4,
+    },
+    {
+      name: 'The road to top 1 raid clan',
+      type: 5,
+    },
+  ],
+},
 
   // ==========================================================
   // COMMAND BEHAVIOR
