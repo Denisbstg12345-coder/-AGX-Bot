@@ -11,7 +11,33 @@ export default {
 
   async execute(client) {
     try {
-      client.user.setPresence(config.bot.presence);
+      // Define custom statuses (0-5) for rotation
+      const customStatuses = [
+        { name: "AGX on TOP", type: 5 }, // 0: Competing
+        { name: "your server", type: 3 }, // 1: Watching
+        { name: "with commands", type: 0 }, // 2: Playing
+        { name: "for support", type: 2 }, // 3: Listening
+        { name: "the community", type: 3 }, // 4: Watching
+        { name: "AGX growth", type: 5 }, // 5: Competing
+      ];
+
+      let statusIndex = 0;
+
+      // Set initial presence
+      client.user.setPresence({
+        activities: [customStatuses[statusIndex]],
+        status: "online",
+      });
+
+      // Rotate status every minute (60000 ms)
+      setInterval(() => {
+        statusIndex = (statusIndex + 1) % customStatuses.length;
+        client.user.setPresence({
+          activities: [customStatuses[statusIndex]],
+          status: "online",
+        });
+        startupLog(`Status updated to: ${customStatuses[statusIndex].name}`);
+      }, 60000);
 
       startupLog(`Ready! Logged in as ${client.user.tag}`);
       startupLog(`Serving ${client.guilds.cache.size} guild(s)`);
