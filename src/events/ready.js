@@ -13,12 +13,12 @@ export default {
     try {
       // Define custom statuses (0-5) for rotation
       const customStatuses = [
-        { name: "AGX on TOP", type: 5 }, // 0: Competing
-        { name: "your server", type: 3 }, // 1: Watching
-        { name: "with commands", type: 0 }, // 2: Playing
-        { name: "for support", type: 2 }, // 3: Listening
-        { name: "the community", type: 3 }, // 4: Watching
-        { name: "AGX growth", type: 5 }, // 5: Competing
+        { name: "TSB, Dont quit the raid untill the last blood is DROPPED.", type: 0 }, // 0: Playing
+        { name: "AGX growing stronger and bigger", type: 1 }, // 1: Streaming
+        { name: "AGX Raiding music", type: 2 }, // 2: Listening
+        { name: "AGX Wiping clans", type: 3 }, // 3: Watching
+        { name: ":3", state: ":3", type: 4 }, // 4: Custom
+        { name: "The road to top 1 raid clan", type: 5 }, // 5: Competing
       ];
 
       let statusIndex = 0;
