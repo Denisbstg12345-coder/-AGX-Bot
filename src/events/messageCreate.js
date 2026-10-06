@@ -1,3 +1,5 @@
+import { Events } from 'discord.js';
+
 const AI_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const AI_DEFAULT_MODEL = 'openrouter/free';
 const AI_REQUEST_TIMEOUT_MS = 30000;
@@ -162,6 +164,7 @@ async function fetchAiReply(userMessage, conversation) {
 
   return reply;
 }
+
 function isOwner(message) {
   return message.author.id === process.env.OWNER_ID;
 }
@@ -277,3 +280,16 @@ async function handleAiResponse(message, client) {
 
   return true;
 }
+
+export default {
+  name: Events.MessageCreate,
+  once: false,
+
+  async execute(message, client) {
+    try {
+      await handleAiResponse(message, client);
+    } catch (error) {
+      console.error('[AI] messageCreate error:', error);
+    }
+  },
+};
