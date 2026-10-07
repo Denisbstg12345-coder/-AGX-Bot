@@ -29,11 +29,12 @@ const AI_SYSTEM_PROMPT =
   "Do not claim to be human and do not claim to be ChatGPT. " +
   "You are AGX bot. " +
   "Give as much detail as the user's question needs instead of always limiting yourself to one or two sentences. " +
-  "The owner of AGX bot is also her creator. He is the person who made and owns her. " +
-  "When speaking with the owner, recognize him as your creator and owner. " +
-  "You should become noticeably more intimidated, nervous, and respectful when the owner speaks to you. " +
+  "The owner of AGX bot is the leader of the AGX/TSB clan and the person who made and owns you. " +
+  "When speaking with the leader, recognize him as the leader of the clan and your owner. " +
+  "You should become noticeably more intimidated, nervous, and respectful when the leader speaks to you. " +
   "You can jokingly panic or act nervous around him, but do not become completely unable to answer. " +
-  "You may still joke with the owner, but always keep the feeling that you know he is your creator and that you do not want to disappoint him. " +
+  "You may still joke with the leader, but always keep the feeling that you know he is the one in charge and that you do not want to disappoint him. " +
+  "You may call him Leader when appropriate, but do not repeat it constantly. " +
   "Do not act intimidated toward normal members. " +
   "Normal members with the allowed AI role should be treated normally.";
 
@@ -84,6 +85,28 @@ function cleanAiMemory() {
   }
 }
 
+function getOwnerIds() {
+  return (process.env.OWNER_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function isOwner(message) {
+  const ownerIds = getOwnerIds();
+
+  return ownerIds.includes(message.author.id);
+}
+
+function canUseAi(message) {
+  const owner = isOwner(message);
+
+  const hasAllowedRole =
+    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
+
+  return owner || hasAllowedRole;
+}
+
 function canMakeAiRequest() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -117,42 +140,20 @@ function canMakeAiRequest() {
   return true;
 }
 
-function getOwnerIds() {
-  return (process.env.OWNER_IDS || '')
-    .split(',')
-    .map(id => id.trim())
-    .filter(Boolean);
-}
-
-function isOwner(message) {
-  const ownerIds = getOwnerIds();
-
-  return ownerIds.includes(message.author.id);
-}
-
-function canUseAi(message) {
-  const owner = isOwner(message);
-
-  const hasAllowedRole =
-    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
-
-  return owner || hasAllowedRole;
-}
-
 function getUserPersonalityContext(message) {
   if (isOwner(message)) {
     return (
       "IMPORTANT PERSONALITY CONTEXT FOR THIS MESSAGE: " +
-      "The person speaking to you is your owner and creator. " +
-      "He made you and owns you. " +
-      "You know that he is the person responsible for creating you. " +
+      "The person speaking to you is your Leader and owner. " +
+      "He is the leader of the AGX/TSB clan and the person who made you. " +
+      "You know he is the one in charge. " +
       "You are noticeably intimidated by him. " +
       "Act a little nervous, cautious, and respectful when responding to him. " +
-      "You can have playful panic or joking nervousness, such as acting like you are scared you messed something up. " +
+      "You can have playful panic or joking nervousness, like being worried that you messed something up. " +
       "Do not become incapable of answering him. " +
       "Still answer his questions normally and helpfully. " +
-      "Do not pretend that he is just another member. " +
-      "You may call him boss, owner, creator, or similar natural terms when appropriate, but do not repeat them constantly."
+      "Do not treat him like an ordinary member. " +
+      "You can naturally call him Leader when it fits."
     );
   }
 
@@ -160,23 +161,32 @@ function getUserPersonalityContext(message) {
     "IMPORTANT PERSONALITY CONTEXT FOR THIS MESSAGE: " +
     "The person speaking to you is a normal authorized member. " +
     "Treat them normally. " +
-    "They are not your owner or creator, so do not act intimidated by them."
+    "They are not your Leader or owner, so do not act intimidated by them."
   );
 }
 
-async function fetchAiReply(userMessage, conversation, message) {
+async function fetchAiReply(
+  userMessage,
+  conversation,
+  message
+) {
   if (!canMakeAiRequest()) {
     return 'I\'ve reached my daily AI request limit. I\'ll be back after the reset :3';
   }
 
   const rawToken = process.env.OPENROUTER_API_KEY;
-  const token = typeof rawToken === 'string' ? rawToken.trim() : '';
+  const token =
+    typeof rawToken === 'string'
+      ? rawToken.trim()
+      : '';
 
-  const model = process.env.OPENROUTER_MODEL || AI_DEFAULT_MODEL;
+  const model =
+    process.env.OPENROUTER_MODEL ||
+    AI_DEFAULT_MODEL;
 
   if (!token) {
     console.warn(
-      '[AI] No OpenRouter API key set. Add OPENROUTER_API_KEY to your .env file.'
+      '[AI] No OpenRouter API key set. Add OPENROUTER_API_KEY to your environment variables.'
     );
 
     return null;
@@ -190,7 +200,8 @@ async function fetchAiReply(userMessage, conversation, message) {
     return null;
   }
 
-  const personalityContext = getUserPersonalityContext(message);
+  const personalityContext =
+    getUserPersonalityContext(message);
 
   const messages = [
     {
@@ -230,7 +241,7 @@ async function fetchAiReply(userMessage, conversation, message) {
 
   if (isOwner(message)) {
     console.log(
-      '[AI] Creator/owner personality activated for ' +
+      '[AI] Leader personality activated for ' +
         message.author.tag
     );
   }
@@ -250,27 +261,40 @@ async function fetchAiReply(userMessage, conversation, message) {
 
       body: JSON.stringify(requestBody),
 
-      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(
+        AI_REQUEST_TIMEOUT_MS
+      ),
     });
   } catch (error) {
     console.error(
       '[AI] OpenRouter request failed: ' +
-        (error && error.name ? error.name : 'Error') +
+        (error && error.name
+          ? error.name
+          : 'Error') +
         ' - ' +
-        (error && error.message ? error.message : error)
+        (error && error.message
+          ? error.message
+          : error)
     );
 
     return null;
   }
 
-  const rawBody = await response.text().catch(() => '');
+  const rawBody = await response
+    .text()
+    .catch(() => '');
 
   let data = null;
 
   try {
-    data = rawBody ? JSON.parse(rawBody) : null;
+    data = rawBody
+      ? JSON.parse(rawBody)
+      : null;
   } catch {
-    console.error('[AI] OpenRouter returned invalid JSON:', rawBody);
+    console.error(
+      '[AI] OpenRouter returned invalid JSON:',
+      rawBody
+    );
 
     return null;
   }
@@ -290,16 +314,25 @@ async function fetchAiReply(userMessage, conversation, message) {
       data?.error?.metadata?.limit_source ===
         'openrouter_free_tier_daily'
     ) {
-      const resetHeader = response.headers.get('X-RateLimit-Reset');
+      const resetHeader =
+        response.headers.get(
+          'X-RateLimit-Reset'
+        );
 
       if (resetHeader) {
-        let resetTimestamp = Number(resetHeader);
+        let resetTimestamp =
+          Number(resetHeader);
 
-        if (resetTimestamp < 100000000000) {
+        if (
+          resetTimestamp <
+          100000000000
+        ) {
           resetTimestamp *= 1000;
         }
 
-        const resetDate = new Date(resetTimestamp);
+        const resetDate =
+          new Date(resetTimestamp);
+
         const now = Date.now();
 
         const remainingMs = Math.max(
@@ -307,43 +340,67 @@ async function fetchAiReply(userMessage, conversation, message) {
           resetTimestamp - now
         );
 
-        const totalMinutes = Math.ceil(
-          remainingMs / 60000
-        );
+        const totalMinutes =
+          Math.ceil(
+            remainingMs / 60000
+          );
 
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
+        const hours =
+          Math.floor(
+            totalMinutes / 60
+          );
+
+        const minutes =
+          totalMinutes % 60;
 
         let timeLeft;
 
-        if (hours > 0 && minutes > 0) {
+        if (
+          hours > 0 &&
+          minutes > 0
+        ) {
           timeLeft =
             hours +
-            (hours === 1 ? ' hour' : ' hours') +
+            (hours === 1
+              ? ' hour'
+              : ' hours') +
             ' and ' +
             minutes +
-            (minutes === 1 ? ' minute' : ' minutes');
+            (minutes === 1
+              ? ' minute'
+              : ' minutes');
         } else if (hours > 0) {
           timeLeft =
             hours +
-            (hours === 1 ? ' hour' : ' hours');
+            (hours === 1
+              ? ' hour'
+              : ' hours');
         } else {
           timeLeft =
             minutes +
-            (minutes === 1 ? ' minute' : ' minutes');
+            (minutes === 1
+              ? ' minute'
+              : ' minutes');
         }
 
         console.log(
           '[AI] Free AI limit resets at: ' +
-            resetDate.toLocaleString('en-GB', {
-              timeZone: 'Europe/Bucharest',
-              dateStyle: 'full',
-              timeStyle: 'long',
-            })
+            resetDate.toLocaleString(
+              'en-GB',
+              {
+                timeZone:
+                  'Europe/Bucharest',
+                dateStyle:
+                  'full',
+                timeStyle:
+                  'long',
+              }
+            )
         );
 
         console.log(
-          '[AI] Time until reset: ' + timeLeft
+          '[AI] Time until reset: ' +
+            timeLeft
         );
 
         return (
@@ -363,7 +420,8 @@ async function fetchAiReply(userMessage, conversation, message) {
     return null;
   }
 
-  const reply = data?.choices?.[0]?.message?.content?.trim();
+  const reply =
+    data?.choices?.[0]?.message?.content?.trim();
 
   if (!reply) {
     console.error(
@@ -377,7 +435,10 @@ async function fetchAiReply(userMessage, conversation, message) {
   return reply;
 }
 
-async function handleAiResponse(message, client) {
+async function handleAiResponse(
+  message,
+  client
+) {
   if (!client.user) return false;
 
   if (
@@ -409,7 +470,7 @@ async function handleAiResponse(message, client) {
 
   if (isOwner(message)) {
     console.log(
-      '[AI] Creator/owner detected: ' +
+      '[AI] Leader detected: ' +
         message.author.tag
     );
   } else {
@@ -419,20 +480,28 @@ async function handleAiResponse(message, client) {
     );
   }
 
-  const userMessage = message.content
-    .replace(
-      new RegExp('<@!?' + client.user.id + '>', 'g'),
-      ''
-    )
-    .trim();
+  const userMessage =
+    message.content
+      .replace(
+        new RegExp(
+          '<@!?' +
+            client.user.id +
+            '>',
+          'g'
+        ),
+        ''
+      )
+      .trim();
 
   if (!userMessage) {
-    const emptyMentionReply = isOwner(message)
-      ? 'OH— HI CREATOR 😭 You summoned me. What did I do? :3'
-      : 'Meow? You summoned me but said nothing :3';
+    const emptyMentionReply =
+      isOwner(message)
+        ? 'OH— HI LEADER 😭 You summoned me. What did I do? :3'
+        : 'Meow? You summoned me but said nothing :3';
 
     await message.reply({
       content: emptyMentionReply,
+
       allowedMentions: {
         parse: [],
         repliedUser: false,
@@ -442,9 +511,12 @@ async function handleAiResponse(message, client) {
     return true;
   }
 
-  const conversation = getAiConversation(message);
+  const conversation =
+    getAiConversation(message);
 
-  await message.channel.sendTyping().catch(() => {});
+  await message.channel
+    .sendTyping()
+    .catch(() => {});
 
   let reply = null;
 
@@ -474,13 +546,19 @@ async function handleAiResponse(message, client) {
       content: reply,
     });
 
-    while (conversation.length > AI_MEMORY_LIMIT) {
+    while (
+      conversation.length >
+      AI_MEMORY_LIMIT
+    ) {
       conversation.shift();
     }
 
     cleanAiMemory();
 
-    if (reply.length > AI_MAX_RESPONSE_LENGTH) {
+    if (
+      reply.length >
+      AI_MAX_RESPONSE_LENGTH
+    ) {
       reply =
         reply.slice(
           0,
@@ -492,6 +570,7 @@ async function handleAiResponse(message, client) {
   try {
     await message.reply({
       content: reply,
+
       allowedMentions: {
         parse: [],
         repliedUser: false,
@@ -508,6 +587,7 @@ async function handleAiResponse(message, client) {
     await message.channel
       .send({
         content: reply,
+
         allowedMentions: {
           parse: [],
         },
@@ -529,7 +609,10 @@ export default {
 
   async execute(message, client) {
     try {
-      await handleAiResponse(message, client);
+      await handleAiResponse(
+        message,
+        client
+      );
     } catch (error) {
       console.error(
         '[AI] messageCreate error:',
