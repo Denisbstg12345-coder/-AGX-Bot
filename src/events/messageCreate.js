@@ -1,7 +1,7 @@
 import { Events } from 'discord.js';
 
 const AI_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const AI_DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+const AI_DEFAULT_MODEL = 'openai/gpt-oss-120b';
 const AI_REQUEST_TIMEOUT_MS = 30000;
 
 const AI_MAX_RESPONSE_LENGTH = 2000;
@@ -26,7 +26,7 @@ const AI_SYSTEM_PROMPT =
   "Do not constantly repeat the same jokes or phrases. " +
   "Do not claim to be human and do not claim to be ChatGPT. " +
   "You are AGX bot. " +
-  "Give as much detail as the user's question needs instead of always limiting yourself to one or two sentences. " +
+  "Give as much detail as the user's question needs. " +
   "The owner of AGX bot is the leader of the AGX/TSB clan and the person who made and owns you. " +
   "When speaking with the leader, recognize him as the leader of the clan and your owner. " +
   "You should become noticeably more intimidated, nervous, and respectful when the leader speaks to you. " +
@@ -56,12 +56,10 @@ function isOwner(message) {
 }
 
 function canUseAi(message) {
-  const owner = isOwner(message);
-
   const hasAllowedRole =
     message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
 
-  return owner || hasAllowedRole;
+  return isOwner(message) || hasAllowedRole;
 }
 
 function getAiConversationKey(message) {
@@ -106,34 +104,27 @@ function getFallbackResponse() {
 function getUserPersonalityContext(message) {
   if (isOwner(message)) {
     return (
-      "IMPORTANT PERSONALITY CONTEXT FOR THIS MESSAGE: " +
       "The person speaking to you is your Leader and owner. " +
       "He is the leader of the AGX/TSB clan and the person who made you. " +
       "You know he is the one in charge. " +
-      "You are noticeably intimidated by him. " +
-      "Act a little nervous, cautious, and respectful when responding to him. " +
-      "You can have playful panic or joking nervousness, like being worried that you messed something up. " +
-      "Do not become incapable of answering him. " +
-      "Still answer his questions normally and helpfully. " +
-      "Do not treat him like an ordinary member. " +
-      "You can naturally call him Leader when it fits."
+      "Be noticeably intimidated, nervous, cautious, and respectful with him. " +
+      "You can jokingly panic if you think you messed something up. " +
+      "Still answer him normally and helpfully. " +
+      "You may naturally call him Leader when it fits."
     );
   }
 
   return (
-    "IMPORTANT PERSONALITY CONTEXT FOR THIS MESSAGE: " +
     "The person speaking to you is a normal authorized member. " +
     "Treat them normally. " +
-    "They are not your Leader or owner, so do not act intimidated by them."
+    "They are not your Leader or owner."
   );
 }
 
 async function fetchAiReply(userMessage, conversation, message) {
-  const rawToken = process.env.GROQ_API_KEY;
-
   const token =
-    typeof rawToken === 'string'
-      ? rawToken.trim()
+    typeof process.env.GROQ_API_KEY === 'string'
+      ? process.env.GROQ_API_KEY.trim()
       : '';
 
   const model =
@@ -142,7 +133,7 @@ async function fetchAiReply(userMessage, conversation, message) {
 
   if (!token) {
     console.warn(
-      '[AI] No Groq API key set. Add GROQ_API_KEY to Railway variables.'
+      '[AI] No Groq API key set. Add GROQ_API_KEY to Railway.'
     );
 
     return null;
@@ -249,21 +240,15 @@ async function fetchAiReply(userMessage, conversation, message) {
     );
 
     if (response.status === 429) {
-      return (
-        'I\'m being rate-limited by Groq right now :3 Try again in a little bit!'
-      );
+      return 'I\'m being rate-limited by Groq right now :3 Try again in a little bit!';
     }
 
     if (response.status === 401) {
-      return (
-        'My Groq API key isn\'t being accepted :3 Check the GROQ_API_KEY in Railway!'
-      );
+      return 'My Groq API key isn\'t being accepted :3 Check GROQ_API_KEY in Railway!';
     }
 
     if (response.status === 400) {
-      return (
-        'Groq rejected that request :3 Check the Railway logs for the exact error!'
-      );
+      return 'Groq rejected that request :3 Check the Railway logs for the exact error!';
     }
 
     return null;
@@ -308,9 +293,7 @@ async function handleAiResponse(message, client) {
 
   if (!canUseAi(message)) {
     console.log(
-      '[AI] Mention from unauthorized user ' +
-        message.author.tag +
-        '; ignoring'
+      '[AI] Unauthorized user; ignoring'
     );
 
     return false;
@@ -428,7 +411,7 @@ async function handleAiResponse(message, client) {
     console.log('[AI] Reply sent');
   } catch (replyError) {
     console.error(
-      '[AI] message.reply failed, trying channel.send:',
+      '[AI] message.reply failed:',
       replyError
     );
 
@@ -442,7 +425,7 @@ async function handleAiResponse(message, client) {
       })
       .catch(sendError => {
         console.error(
-          '[AI] channel.send also failed:',
+          '[AI] channel.send failed:',
           sendError
         );
       });
