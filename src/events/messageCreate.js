@@ -28,7 +28,14 @@ const AI_SYSTEM_PROMPT =
   "Do not constantly repeat the same jokes or phrases. " +
   "Do not claim to be human and do not claim to be ChatGPT. " +
   "You are AGX bot. " +
-  "Give as much detail as the user's question needs instead of always limiting yourself to one or two sentences.";
+  "Give as much detail as the user's question needs instead of always limiting yourself to one or two sentences. " +
+  "The owner of AGX bot is also her creator. He is the person who made and owns her. " +
+  "When speaking with the owner, recognize him as your creator and owner. " +
+  "You should become noticeably more intimidated, nervous, and respectful when the owner speaks to you. " +
+  "You can jokingly panic or act nervous around him, but do not become completely unable to answer. " +
+  "You may still joke with the owner, but always keep the feeling that you know he is your creator and that you do not want to disappoint him. " +
+  "Do not act intimidated toward normal members. " +
+  "Normal members with the allowed AI role should be treated normally.";
 
 const AI_FALLBACK_RESPONSES = [
   'My brain lagged out for a second :3 try that again',
@@ -110,7 +117,54 @@ function canMakeAiRequest() {
   return true;
 }
 
-async function fetchAiReply(userMessage, conversation) {
+function getOwnerIds() {
+  return (process.env.OWNER_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function isOwner(message) {
+  const ownerIds = getOwnerIds();
+
+  return ownerIds.includes(message.author.id);
+}
+
+function canUseAi(message) {
+  const owner = isOwner(message);
+
+  const hasAllowedRole =
+    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
+
+  return owner || hasAllowedRole;
+}
+
+function getUserPersonalityContext(message) {
+  if (isOwner(message)) {
+    return (
+      "IMPORTANT PERSONALITY CONTEXT FOR THIS MESSAGE: " +
+      "The person speaking to you is your owner and creator. " +
+      "He made you and owns you. " +
+      "You know that he is the person responsible for creating you. " +
+      "You are noticeably intimidated by him. " +
+      "Act a little nervous, cautious, and respectful when responding to him. " +
+      "You can have playful panic or joking nervousness, such as acting like you are scared you messed something up. " +
+      "Do not become incapable of answering him. " +
+      "Still answer his questions normally and helpfully. " +
+      "Do not pretend that he is just another member. " +
+      "You may call him boss, owner, creator, or similar natural terms when appropriate, but do not repeat them constantly."
+    );
+  }
+
+  return (
+    "IMPORTANT PERSONALITY CONTEXT FOR THIS MESSAGE: " +
+    "The person speaking to you is a normal authorized member. " +
+    "Treat them normally. " +
+    "They are not your owner or creator, so do not act intimidated by them."
+  );
+}
+
+async function fetchAiReply(userMessage, conversation, message) {
   if (!canMakeAiRequest()) {
     return 'I\'ve reached my daily AI request limit. I\'ll be back after the reset :3';
   }
@@ -124,6 +178,7 @@ async function fetchAiReply(userMessage, conversation) {
     console.warn(
       '[AI] No OpenRouter API key set. Add OPENROUTER_API_KEY to your .env file.'
     );
+
     return null;
   }
 
@@ -131,13 +186,21 @@ async function fetchAiReply(userMessage, conversation) {
     console.warn(
       '[AI] OPENROUTER_API_KEY does not look like an OpenRouter key.'
     );
+
     return null;
   }
+
+  const personalityContext = getUserPersonalityContext(message);
 
   const messages = [
     {
       role: 'system',
       content: AI_SYSTEM_PROMPT,
+    },
+
+    {
+      role: 'system',
+      content: personalityContext,
     },
 
     ...conversation,
@@ -164,6 +227,13 @@ async function fetchAiReply(userMessage, conversation) {
       ', userMessageLength=' +
       userMessage.length
   );
+
+  if (isOwner(message)) {
+    console.log(
+      '[AI] Creator/owner personality activated for ' +
+        message.author.tag
+    );
+  }
 
   let response;
 
@@ -201,6 +271,7 @@ async function fetchAiReply(userMessage, conversation) {
     data = rawBody ? JSON.parse(rawBody) : null;
   } catch {
     console.error('[AI] OpenRouter returned invalid JSON:', rawBody);
+
     return null;
   }
 
@@ -230,6 +301,7 @@ async function fetchAiReply(userMessage, conversation) {
 
         const resetDate = new Date(resetTimestamp);
         const now = Date.now();
+
         const remainingMs = Math.max(
           0,
           resetTimestamp - now
@@ -298,24 +370,11 @@ async function fetchAiReply(userMessage, conversation) {
       '[AI] OpenRouter returned no usable response:',
       data
     );
+
     return null;
   }
 
   return reply;
-}
-
-function canUseAi(message) {
-  const ownerIds = (process.env.OWNER_IDS || '')
-    .split(',')
-    .map(id => id.trim())
-    .filter(Boolean);
-
-  const isOwner = ownerIds.includes(message.author.id);
-
-  const hasAllowedRole =
-    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
-
-  return isOwner || hasAllowedRole;
 }
 
 async function handleAiResponse(message, client) {
@@ -348,10 +407,17 @@ async function handleAiResponse(message, client) {
     return false;
   }
 
-  console.log(
-    '[AI] Authorized AI user detected: ' +
-      message.author.tag
-  );
+  if (isOwner(message)) {
+    console.log(
+      '[AI] Creator/owner detected: ' +
+        message.author.tag
+    );
+  } else {
+    console.log(
+      '[AI] Authorized role member detected: ' +
+        message.author.tag
+    );
+  }
 
   const userMessage = message.content
     .replace(
@@ -361,9 +427,12 @@ async function handleAiResponse(message, client) {
     .trim();
 
   if (!userMessage) {
+    const emptyMentionReply = isOwner(message)
+      ? 'OH— HI CREATOR 😭 You summoned me. What did I do? :3'
+      : 'Meow? You summoned me but said nothing :3';
+
     await message.reply({
-      content:
-        'Meow? You summoned me but said nothing, clan leader :3',
+      content: emptyMentionReply,
       allowedMentions: {
         parse: [],
         repliedUser: false,
@@ -382,7 +451,8 @@ async function handleAiResponse(message, client) {
   try {
     reply = await fetchAiReply(
       userMessage,
-      conversation
+      conversation,
+      message
     );
   } catch (error) {
     console.error(
