@@ -7,11 +7,9 @@ const AI_REQUEST_TIMEOUT_MS = 30000;
 const AI_MAX_RESPONSE_LENGTH = 2000;
 const AI_MEMORY_LIMIT = 20;
 
-const AI_DAILY_REQUEST_LIMIT = 50;
 const AI_ALLOWED_ROLE_ID = '1556876676615512116';
 
-let aiDailyRequestCount = 0;
-let aiDailyRequestDate = new Date().toISOString().slice(0, 10);
+const aiConversations = new Map();
 
 const AI_SYSTEM_PROMPT =
   "You are AGX bot, part of the TSB raid clan. " +
@@ -46,7 +44,25 @@ const AI_FALLBACK_RESPONSES = [
   'I am here, my brain just decided to take a vacation',
 ];
 
-const aiConversations = new Map();
+function getOwnerIds() {
+  return (process.env.OWNER_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function isOwner(message) {
+  return getOwnerIds().includes(message.author.id);
+}
+
+function canUseAi(message) {
+  const owner = isOwner(message);
+
+  const hasAllowedRole =
+    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
+
+  return owner || hasAllowedRole;
+}
 
 function getAiConversationKey(message) {
   return (
@@ -68,14 +84,10 @@ function getAiConversation(message) {
   return aiConversations.get(key);
 }
 
-function getFallbackResponse() {
-  return AI_FALLBACK_RESPONSES[
-    Math.floor(Math.random() * AI_FALLBACK_RESPONSES.length)
-  ];
-}
-
 function cleanAiMemory() {
-  if (aiConversations.size <= 100) return;
+  if (aiConversations.size <= 100) {
+    return;
+  }
 
   const entries = Array.from(aiConversations.entries());
   const amountToDelete = aiConversations.size - 100;
@@ -85,59 +97,10 @@ function cleanAiMemory() {
   }
 }
 
-function getOwnerIds() {
-  return (process.env.OWNER_IDS || '')
-    .split(',')
-    .map(id => id.trim())
-    .filter(Boolean);
-}
-
-function isOwner(message) {
-  const ownerIds = getOwnerIds();
-
-  return ownerIds.includes(message.author.id);
-}
-
-function canUseAi(message) {
-  const owner = isOwner(message);
-
-  const hasAllowedRole =
-    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
-
-  return owner || hasAllowedRole;
-}
-
-function canMakeAiRequest() {
-  const today = new Date().toISOString().slice(0, 10);
-
-  if (today !== aiDailyRequestDate) {
-    aiDailyRequestDate = today;
-    aiDailyRequestCount = 0;
-
-    console.log('[AI] Daily request counter reset.');
-  }
-
-  if (aiDailyRequestCount >= AI_DAILY_REQUEST_LIMIT) {
-    console.log(
-      '[AI] Local daily request limit reached: ' +
-        aiDailyRequestCount +
-        '/' +
-        AI_DAILY_REQUEST_LIMIT
-    );
-
-    return false;
-  }
-
-  aiDailyRequestCount++;
-
-  console.log(
-    '[AI] Daily requests: ' +
-      aiDailyRequestCount +
-      '/' +
-      AI_DAILY_REQUEST_LIMIT
-  );
-
-  return true;
+function getFallbackResponse() {
+  return AI_FALLBACK_RESPONSES[
+    Math.floor(Math.random() * AI_FALLBACK_RESPONSES.length)
+  ];
 }
 
 function getUserPersonalityContext(message) {
@@ -165,16 +128,9 @@ function getUserPersonalityContext(message) {
   );
 }
 
-async function fetchAiReply(
-  userMessage,
-  conversation,
-  message
-) {
-  if (!canMakeAiRequest()) {
-    return 'I\'ve reached my daily AI request limit. I\'ll be back after the reset :3';
-  }
-
+async function fetchAiReply(userMessage, conversation, message) {
   const rawToken = process.env.OPENROUTER_API_KEY;
+
   const token =
     typeof rawToken === 'string'
       ? rawToken.trim()
@@ -200,9 +156,6 @@ async function fetchAiReply(
     return null;
   }
 
-  const personalityContext =
-    getUserPersonalityContext(message);
-
   const messages = [
     {
       role: 'system',
@@ -211,7 +164,7 @@ async function fetchAiReply(
 
     {
       role: 'system',
-      content: personalityContext,
+      content: getUserPersonalityContext(message),
     },
 
     ...conversation,
@@ -223,8 +176,8 @@ async function fetchAiReply(
   ];
 
   const requestBody = {
-    model: model,
-    messages: messages,
+    model,
+    messages,
     max_tokens: 700,
     temperature: 0.8,
     stream: false,
@@ -268,13 +221,9 @@ async function fetchAiReply(
   } catch (error) {
     console.error(
       '[AI] OpenRouter request failed: ' +
-        (error && error.name
-          ? error.name
-          : 'Error') +
+        (error?.name || 'Error') +
         ' - ' +
-        (error && error.message
-          ? error.message
-          : error)
+        (error?.message || error)
     );
 
     return null;
@@ -320,12 +269,10 @@ async function fetchAiReply(
         );
 
       if (resetHeader) {
-        let resetTimestamp =
-          Number(resetHeader);
+        let resetTimestamp = Number(resetHeader);
 
         if (
-          resetTimestamp <
-          100000000000
+          resetTimestamp < 100000000000
         ) {
           resetTimestamp *= 1000;
         }
@@ -333,11 +280,9 @@ async function fetchAiReply(
         const resetDate =
           new Date(resetTimestamp);
 
-        const now = Date.now();
-
         const remainingMs = Math.max(
           0,
-          resetTimestamp - now
+          resetTimestamp - Date.now()
         );
 
         const totalMinutes =
@@ -355,10 +300,7 @@ async function fetchAiReply(
 
         let timeLeft;
 
-        if (
-          hours > 0 &&
-          minutes > 0
-        ) {
+        if (hours > 0 && minutes > 0) {
           timeLeft =
             hours +
             (hours === 1
@@ -390,10 +332,8 @@ async function fetchAiReply(
               {
                 timeZone:
                   'Europe/Bucharest',
-                dateStyle:
-                  'full',
-                timeStyle:
-                  'long',
+                dateStyle: 'full',
+                timeStyle: 'long',
               }
             )
         );
@@ -435,11 +375,10 @@ async function fetchAiReply(
   return reply;
 }
 
-async function handleAiResponse(
-  message,
-  client
-) {
-  if (!client.user) return false;
+async function handleAiResponse(message, client) {
+  if (!client.user) {
+    return false;
+  }
 
   if (
     !message.mentions.has(client.user, {
