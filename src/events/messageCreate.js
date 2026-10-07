@@ -258,103 +258,100 @@ async function fetchAiReply(userMessage, conversation, message) {
       data
     );
 
-    if (
-      response.status === 429 &&
-      data?.error?.metadata?.limit_source ===
+    // IMPORTANT:
+    // There is NO local cooldown here.
+    // This only reacts to an actual OpenRouter server-side limit.
+    if (response.status === 429) {
+      const limitSource =
+        data?.error?.metadata?.limit_source;
+
+      if (
+        limitSource ===
         'openrouter_free_tier_daily'
-    ) {
-      const resetHeader =
-        response.headers.get(
-          'X-RateLimit-Reset'
-        );
-
-      if (resetHeader) {
-        let resetTimestamp = Number(resetHeader);
-
-        if (
-          resetTimestamp < 100000000000
-        ) {
-          resetTimestamp *= 1000;
-        }
-
-        const resetDate =
-          new Date(resetTimestamp);
-
-        const remainingMs = Math.max(
-          0,
-          resetTimestamp - Date.now()
-        );
-
-        const totalMinutes =
-          Math.ceil(
-            remainingMs / 60000
+      ) {
+        const resetHeader =
+          response.headers.get(
+            'X-RateLimit-Reset'
           );
 
-        const hours =
-          Math.floor(
-            totalMinutes / 60
+        if (resetHeader) {
+          let resetTimestamp = Number(resetHeader);
+
+          if (
+            resetTimestamp < 100000000000
+          ) {
+            resetTimestamp *= 1000;
+          }
+
+          const remainingMs = Math.max(
+            0,
+            resetTimestamp - Date.now()
           );
 
-        const minutes =
-          totalMinutes % 60;
+          const totalMinutes =
+            Math.ceil(
+              remainingMs / 60000
+            );
 
-        let timeLeft;
+          const hours =
+            Math.floor(
+              totalMinutes / 60
+            );
 
-        if (hours > 0 && minutes > 0) {
-          timeLeft =
-            hours +
-            (hours === 1
-              ? ' hour'
-              : ' hours') +
-            ' and ' +
-            minutes +
-            (minutes === 1
-              ? ' minute'
-              : ' minutes');
-        } else if (hours > 0) {
-          timeLeft =
-            hours +
-            (hours === 1
-              ? ' hour'
-              : ' hours');
-        } else {
-          timeLeft =
-            minutes +
-            (minutes === 1
-              ? ' minute'
-              : ' minutes');
+          const minutes =
+            totalMinutes % 60;
+
+          let timeLeft;
+
+          if (hours > 0 && minutes > 0) {
+            timeLeft =
+              hours +
+              (hours === 1
+                ? ' hour'
+                : ' hours') +
+              ' and ' +
+              minutes +
+              (minutes === 1
+                ? ' minute'
+                : ' minutes');
+          } else if (hours > 0) {
+            timeLeft =
+              hours +
+              (hours === 1
+                ? ' hour'
+                : ' hours');
+          } else {
+            timeLeft =
+              minutes +
+              (minutes === 1
+                ? ' minute'
+                : ' minutes');
+          }
+
+          console.log(
+            '[AI] OpenRouter free-tier limit is active.'
+          );
+
+          console.log(
+            '[AI] Time until OpenRouter reset: ' +
+              timeLeft
+          );
+
+          return (
+            'OpenRouter hit its free AI limit :3 I can\'t bypass their server-side limit. Try again in ' +
+            timeLeft +
+            '!'
+          );
         }
-
-        console.log(
-          '[AI] Free AI limit resets at: ' +
-            resetDate.toLocaleString(
-              'en-GB',
-              {
-                timeZone:
-                  'Europe/Bucharest',
-                dateStyle: 'full',
-                timeStyle: 'long',
-              }
-            )
-        );
-
-        console.log(
-          '[AI] Time until reset: ' +
-            timeLeft
-        );
 
         return (
-          'I hit today\'s free AI limit :3 You can use me again in ' +
-          timeLeft +
-          '!'
+          'OpenRouter hit its free AI limit :3 I can\'t bypass their server-side limit. I\'ll work again after the daily reset!'
         );
       }
 
-      console.log(
-        '[AI] OpenRouter did not provide X-RateLimit-Reset.'
+      return (
+        'OpenRouter is rate-limiting me right now :3 Try again in a little bit!'
       );
-
-      return 'I hit today\'s free AI limit :3 I\'ll be back after the daily reset!';
     }
 
     return null;
@@ -460,6 +457,8 @@ async function handleAiResponse(message, client) {
   let reply = null;
 
   try {
+    // There is intentionally NO cooldown check here.
+    // Every authorized mention gets sent to OpenRouter.
     reply = await fetchAiReply(
       userMessage,
       conversation,
