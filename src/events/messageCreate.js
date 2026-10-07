@@ -1,11 +1,11 @@
 import { Events } from 'discord.js';
 
-const AI_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const AI_DEFAULT_MODEL = 'openrouter/free';
+const AI_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const AI_DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 const AI_REQUEST_TIMEOUT_MS = 30000;
 
 const AI_MAX_RESPONSE_LENGTH = 2000;
-const AI_MEMORY_LIMIT = 20;
+const AI_MEMORY_LIMIT = 100;
 
 const AI_ALLOWED_ROLE_ID = '1556876676615512116';
 
@@ -129,7 +129,7 @@ function getUserPersonalityContext(message) {
 }
 
 async function fetchAiReply(userMessage, conversation, message) {
-  const rawToken = process.env.OPENROUTER_API_KEY;
+  const rawToken = process.env.GROQ_API_KEY;
 
   const token =
     typeof rawToken === 'string'
@@ -137,20 +137,12 @@ async function fetchAiReply(userMessage, conversation, message) {
       : '';
 
   const model =
-    process.env.OPENROUTER_MODEL ||
+    process.env.GROQ_MODEL ||
     AI_DEFAULT_MODEL;
 
   if (!token) {
     console.warn(
-      '[AI] No OpenRouter API key set. Add OPENROUTER_API_KEY to your environment variables.'
-    );
-
-    return null;
-  }
-
-  if (!token.startsWith('sk-or-')) {
-    console.warn(
-      '[AI] OPENROUTER_API_KEY does not look like an OpenRouter key.'
+      '[AI] No Groq API key set. Add GROQ_API_KEY to Railway variables.'
     );
 
     return null;
@@ -184,7 +176,7 @@ async function fetchAiReply(userMessage, conversation, message) {
   };
 
   console.log(
-    '[AI] Sending request: model=' +
+    '[AI] Sending Groq request: model=' +
       model +
       ', messages=' +
       messages.length +
@@ -208,8 +200,6 @@ async function fetchAiReply(userMessage, conversation, message) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer ' + token,
-        'HTTP-Referer': 'https://discord.com',
-        'X-Title': 'AGX TitanBot',
       },
 
       body: JSON.stringify(requestBody),
@@ -220,7 +210,7 @@ async function fetchAiReply(userMessage, conversation, message) {
     });
   } catch (error) {
     console.error(
-      '[AI] OpenRouter request failed: ' +
+      '[AI] Groq request failed: ' +
         (error?.name || 'Error') +
         ' - ' +
         (error?.message || error)
@@ -241,7 +231,7 @@ async function fetchAiReply(userMessage, conversation, message) {
       : null;
   } catch {
     console.error(
-      '[AI] OpenRouter returned invalid JSON:',
+      '[AI] Groq returned invalid JSON:',
       rawBody
     );
 
@@ -250,7 +240,7 @@ async function fetchAiReply(userMessage, conversation, message) {
 
   if (!response.ok) {
     console.error(
-      '[AI] OpenRouter error ' +
+      '[AI] Groq error ' +
         response.status +
         ' ' +
         response.statusText +
@@ -258,99 +248,21 @@ async function fetchAiReply(userMessage, conversation, message) {
       data
     );
 
-    // IMPORTANT:
-    // There is NO local cooldown here.
-    // This only reacts to an actual OpenRouter server-side limit.
     if (response.status === 429) {
-      const limitSource =
-        data?.error?.metadata?.limit_source;
-
-      if (
-        limitSource ===
-        'openrouter_free_tier_daily'
-      ) {
-        const resetHeader =
-          response.headers.get(
-            'X-RateLimit-Reset'
-          );
-
-        if (resetHeader) {
-          let resetTimestamp = Number(resetHeader);
-
-          if (
-            resetTimestamp < 100000000000
-          ) {
-            resetTimestamp *= 1000;
-          }
-
-          const remainingMs = Math.max(
-            0,
-            resetTimestamp - Date.now()
-          );
-
-          const totalMinutes =
-            Math.ceil(
-              remainingMs / 60000
-            );
-
-          const hours =
-            Math.floor(
-              totalMinutes / 60
-            );
-
-          const minutes =
-            totalMinutes % 60;
-
-          let timeLeft;
-
-          if (hours > 0 && minutes > 0) {
-            timeLeft =
-              hours +
-              (hours === 1
-                ? ' hour'
-                : ' hours') +
-              ' and ' +
-              minutes +
-              (minutes === 1
-                ? ' minute'
-                : ' minutes');
-          } else if (hours > 0) {
-            timeLeft =
-              hours +
-              (hours === 1
-                ? ' hour'
-                : ' hours');
-          } else {
-            timeLeft =
-              minutes +
-              (minutes === 1
-                ? ' minute'
-                : ' minutes');
-          }
-
-          console.log(
-            '[AI] OpenRouter free-tier limit is active.'
-          );
-
-          console.log(
-            '[AI] Time until OpenRouter reset: ' +
-              timeLeft
-          );
-
-          return (
-            'OpenRouter hit its free AI limit :3 I can\'t bypass their server-side limit. Try again in ' +
-            timeLeft +
-            '!'
-          );
-        }
-
-        return (
-          'OpenRouter hit its free AI limit :3 I can\'t bypass their server-side limit. I\'ll work again after the daily reset!'
-        );
-      }
-
       return (
-        'OpenRouter is rate-limiting me right now :3 Try again in a little bit!'
+        'I\'m being rate-limited by Groq right now :3 Try again in a little bit!'
+      );
+    }
+
+    if (response.status === 401) {
+      return (
+        'My Groq API key isn\'t being accepted :3 Check the GROQ_API_KEY in Railway!'
+      );
+    }
+
+    if (response.status === 400) {
+      return (
+        'Groq rejected that request :3 Check the Railway logs for the exact error!'
       );
     }
 
@@ -362,7 +274,7 @@ async function fetchAiReply(userMessage, conversation, message) {
 
   if (!reply) {
     console.error(
-      '[AI] OpenRouter returned no usable response:',
+      '[AI] Groq returned no usable response:',
       data
     );
 
@@ -457,8 +369,6 @@ async function handleAiResponse(message, client) {
   let reply = null;
 
   try {
-    // There is intentionally NO cooldown check here.
-    // Every authorized mention gets sent to OpenRouter.
     reply = await fetchAiReply(
       userMessage,
       conversation,
