@@ -7,14 +7,16 @@ const AI_REQUEST_TIMEOUT_MS = 30000;
 const AI_MAX_RESPONSE_LENGTH = 2000;
 const AI_MEMORY_LIMIT = 20;
 
-// Local safety limit. This does NOT increase OpenRouter's limit.
 const AI_DAILY_REQUEST_LIMIT = 50;
+const AI_ALLOWED_ROLE_ID = '1556876676615512116';
 
 let aiDailyRequestCount = 0;
 let aiDailyRequestDate = new Date().toISOString().slice(0, 10);
 
 const AI_SYSTEM_PROMPT =
   "You are AGX bot, part of the TSB raid clan. " +
+  "You are a girl and use she/her pronouns. " +
+  "Never refer to yourself with he/him pronouns. " +
   "Your personality is playful, mischievous, friendly, and slightly chaotic, with :3 vibes. " +
   "You talk casually and naturally, like a real Discord bot that knows the user. " +
   "You can joke, tease lightly, explain things, answer questions, help with problems, and have normal conversations. " +
@@ -22,7 +24,7 @@ const AI_SYSTEM_PROMPT =
   "Use :3 naturally when it fits instead of putting it in every message. " +
   "Match the user's tone. If they are serious, be helpful and respectful. " +
   "If they are joking, joke back. " +
-  "Do not use emojis or emoji characters. " +
+  "Use emojis naturally when they fit the conversation. " +
   "Do not constantly repeat the same jokes or phrases. " +
   "Do not claim to be human and do not claim to be ChatGPT. " +
   "You are AGX bot. " +
@@ -222,7 +224,6 @@ async function fetchAiReply(userMessage, conversation) {
       if (resetHeader) {
         let resetTimestamp = Number(resetHeader);
 
-        // Handle either milliseconds or seconds
         if (resetTimestamp < 100000000000) {
           resetTimestamp *= 1000;
         }
@@ -303,13 +304,18 @@ async function fetchAiReply(userMessage, conversation) {
   return reply;
 }
 
-function isOwner(message) {
+function canUseAi(message) {
   const ownerIds = (process.env.OWNER_IDS || '')
     .split(',')
     .map(id => id.trim())
     .filter(Boolean);
 
-  return ownerIds.includes(message.author.id);
+  const isOwner = ownerIds.includes(message.author.id);
+
+  const hasAllowedRole =
+    message.member?.roles?.cache?.has(AI_ALLOWED_ROLE_ID) || false;
+
+  return isOwner || hasAllowedRole;
 }
 
 async function handleAiResponse(message, client) {
@@ -332,9 +338,9 @@ async function handleAiResponse(message, client) {
       ')'
   );
 
-  if (!isOwner(message)) {
+  if (!canUseAi(message)) {
     console.log(
-      '[AI] Mention from non-owner ' +
+      '[AI] Mention from unauthorized user ' +
         message.author.tag +
         '; ignoring'
     );
@@ -343,7 +349,7 @@ async function handleAiResponse(message, client) {
   }
 
   console.log(
-    '[AI] Owner mention detected from ' +
+    '[AI] Authorized AI user detected: ' +
       message.author.tag
   );
 
